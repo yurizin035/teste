@@ -1,32 +1,43 @@
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
-exports.handler = async function(event, context) {
-    const { valor, descricao } = JSON.parse(event.body);
+exports.handler = async function (event, context) {
+  if (event.httpMethod !== 'POST') {
+    return {
+      statusCode: 405,
+      body: JSON.stringify({ message: 'Method Not Allowed' }),
+    };
+  }
 
-    try {
-        const response = await fetch('https://api.pushinpay.com.br/v1/cobranca/pix', {
-            method: 'POST',
-            headers: {
-                'Authorization': 'Bearer 1539|4K1rHtLMG1WoYKOIm55wlNFbLmBoD8BgoQrDm1Uvfe13bba1',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                valor: valor,
-                descricao: descricao,
-                expiracao: 3600 // 1 hora
-            })
-        });
+  const body = JSON.parse(event.body);
 
-        const data = await response.json();
+  // Configura os dados a serem enviados
+  const data = {
+    value: body.value || 100,
+    webhook_url: body.webhook_url || 'https://seu-site.com',
+  };
 
-        return {
-            statusCode: 200,
-            body: JSON.stringify(data),
-        };
-    } catch (error) {
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ message: 'Erro ao criar o Pix', error: error.message })
-        };
-    }
+  try {
+    // Faz a requisição à API
+    const response = await fetch('https://api.pushinpay.com.br/api/pix/cashIn', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer 1539|4K1rHtLMG1WoYKOIm55wlNFbLmBoD8BgoQrDm1Uvfe13bba1',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json();
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify(result),
+    };
+  } catch (error) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: 'Internal Server Error', error: error.message }),
+    };
+  }
 };
